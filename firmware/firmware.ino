@@ -35,6 +35,7 @@ transmit. Configuring a callsign is required to enable the transmitter.
 #define SI5351_DRIVE_LEVEL SI5351_DRIVE_2MA  // Power output from SI5351, higher levels don't add much output but do create spurious emmissions.
 #define SAMPLE_WRITE_CORR_US -3              // Time correction between sample writes to account for code which can't be measured.
 #define MAX_UINT32 4294967295                // Maximum value for a 32 bit unsigned integer. Used to prevent glitches when micros() overflows.
+#define NUM_AUDIO_FILES 8                    // Max number of audio file to create and use
 
 // Frequency limitations.
 #define MIN_FREQ_MHZ 144
@@ -60,17 +61,42 @@ bool hostMounted = false;
 
 // Flash file names.
 const char SETTINGS_TXT[] = "settings.txt";
-const char AUDIO_WAV[] = "audio.wav";
-const char CALLSIGN_WAV[] = ".callsign.wav";
+const char AUDIO_WAV_1[] = "audio1.wav";
+const char AUDIO_WAV_2[] = "audio2.wav";
+const char AUDIO_WAV_3[] = "audio3.wav";
+const char AUDIO_WAV_4[] = "audio4.wav";
+const char AUDIO_WAV_5[] = "audio5.wav";
+const char AUDIO_WAV_6[] = "audio6.wav";
+const char AUDIO_WAV_7[] = "audio7.wav";
+const char AUDIO_WAV_8[] = "audio8.wav";
 const char SETTINGS_CRC[] = ".settings_crc.bin";
+const char CALLSIGN_WAV[] = ".callsign.wav";
+
+// Array of audio file names for easy cycling
+const char* audioFiles[NUM_AUDIO_FILES] = {
+  AUDIO_WAV_1, AUDIO_WAV_2, AUDIO_WAV_3, AUDIO_WAV_4,
+  AUDIO_WAV_5, AUDIO_WAV_6, AUDIO_WAV_7, AUDIO_WAV_8
+};
+
+// Add variable to track current audio file (add near the Settings declaration, around line 100)
+uint8_t currentAudioFile = 0;
+
 
 // These files are allowed to be in flash, other files will be deleted.
 const char* validFiles[] = {
   SETTINGS_TXT,
-  AUDIO_WAV,
+  AUDIO_WAV_1,
+  AUDIO_WAV_2,
+  AUDIO_WAV_3,
+  AUDIO_WAV_4,
+  AUDIO_WAV_5,
+  AUDIO_WAV_6,
+  AUDIO_WAV_7,
+  AUDIO_WAV_8,
   CALLSIGN_WAV,
   SETTINGS_CRC,
 };
+
 const size_t numValidFiles = sizeof(validFiles) / sizeof(validFiles[0]);
 
 // Default settings.
@@ -104,6 +130,7 @@ Settings settings = {
   .morseWPM = DEFAULT_WPM,
   .farnsworthWPM = DEFAULT_FARNSWORTH_WPM,
   .morseToneHz = DEFAULT_MORSE_TONE_HZ,
+  .toneAmplitudePercent = DEFAULT_TONE_AMPLITUDE_PERCENT,
   .isConfigured = (strlen(DEFAULT_CALLSIGN) > 0)
 };
 
@@ -155,7 +182,7 @@ bool isFileInList(const char* name) {
   return false;
 }
 
-// Removes files which shouldn't be present and applies defaults for missing files.
+// Modified flashCleanup() function - replace the audio file check section
 void flashCleanup() {
   // Open root filesystem.
   if (!openRoot()) {
@@ -180,10 +207,14 @@ void flashCleanup() {
     Serial.println("No settings file found. Writing default settings.");
   }
 
-  // Write the default audio if audio file is missing.
-  if (!root.exists(AUDIO_WAV)) {
-    saveDefaultAudio();
-    Serial.println("No audio file found. Writing default audio.");
+  // Write the default audio for any missing audio files.
+  for (int i = 0; i < NUM_AUDIO_FILES; i++) {
+    if (!root.exists(audioFiles[i])) {
+      saveDefaultAudio(audioFiles[i]);
+      Serial.print("No audio file found: ");
+      Serial.print(audioFiles[i]);
+      Serial.println(". Writing default audio.");
+    }
   }
 
   // Close the filesytem.
@@ -211,8 +242,8 @@ void saveDefaultSettings() {
 }
 
 // Saves the default audio wav to the audio.wav file in flash.
-void saveDefaultAudio() {
-  file.open(&root, AUDIO_WAV, O_RDWR | O_CREAT);
+void saveDefaultAudio(const char* filename) {
+  file.open(&root, filename, O_RDWR | O_CREAT);
   file.write(wavHeader, sizeof(wavHeader));  // Write wav header once.
   // Loop default audio to produce longer playback between IDs and transmitter cycling.
   for (int i = 0; i < DEFAULT_AUDIO_LOOPS; i++) {
@@ -509,8 +540,16 @@ void audioTask() {
 
     if (settings.isConfigured && settings.dutyCyclePercent > 0) {
       setSi5351Output(true);
-      uint32_t audioLengthMs = playAudio(AUDIO_WAV);
+      
+      // Play the current audio file in the cycle
+      uint32_t audioLengthMs = playAudio(audioFiles[currentAudioFile]);
+      
+      // Play the callsign after the audio
       audioLengthMs += playAudio(CALLSIGN_WAV);
+      
+      // Move to next audio file for next cycle
+      currentAudioFile = (currentAudioFile + 1) % NUM_AUDIO_FILES;
+      
       if (settings.dutyCyclePercent < 100) {
         uint32_t offTime = ((100 - settings.dutyCyclePercent) * audioLengthMs) / 100;
         setSi5351Output(false);
@@ -524,6 +563,7 @@ void audioTask() {
 
 void setup() {
   Serial.begin(115200);
+  Serial.println("Serial Started...");
 
 #ifdef DEBUG
   while (!Serial) delay(10);
