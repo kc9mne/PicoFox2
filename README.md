@@ -1,3 +1,5 @@
+Below is the orginal info from AI6YM I have modified the code to enable multiple audio files named audio1.wav though audio8.wav played in order on a cycle.
+
 # PicoFox – A Hackable 2m Fox Transmitter
 
 **PicoFox** is an open source fox transmitter for the 2-meter amateur band, built around the
