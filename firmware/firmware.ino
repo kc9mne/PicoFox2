@@ -1,5 +1,8 @@
 /* PicoFox - 2M FM Fox Transmitter
 
+Modified BY KC9MNE to play multiple wav files in sequence, and have better audio quality.
+below is AI6YM's original header, All base and foundational work is credited to him!
+---------------------------------------------------------------------------------------
 Copyright 2025 Giorgi Enterprises LLC dba AI6YM.radio.
 License: Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (see LICENSE file).
 
@@ -35,7 +38,7 @@ transmit. Configuring a callsign is required to enable the transmitter.
 #define SI5351_DRIVE_LEVEL SI5351_DRIVE_2MA  // Power output from SI5351, higher levels don't add much output but do create spurious emmissions.
 #define SAMPLE_WRITE_CORR_US -3              // Time correction between sample writes to account for code which can't be measured.
 #define MAX_UINT32 4294967295                // Maximum value for a 32 bit unsigned integer. Used to prevent glitches when micros() overflows.
-#define NUM_AUDIO_FILES 8                    // Max number of audio file to create and use
+#define NUM_AUDIO_FILES 11                    // Max number of audio file to create and use
 
 // Frequency limitations.
 #define MIN_FREQ_MHZ 144
@@ -69,13 +72,17 @@ const char AUDIO_WAV_5[] = "audio5.wav";
 const char AUDIO_WAV_6[] = "audio6.wav";
 const char AUDIO_WAV_7[] = "audio7.wav";
 const char AUDIO_WAV_8[] = "audio8.wav";
+const char AUDIO_WAV_9[] = "audio9.wav";
+const char AUDIO_WAV_10[] = "audio10.wav";
+const char AUDIO_WAV_11[] = "audio11.wav";
 const char SETTINGS_CRC[] = ".settings_crc.bin";
-const char CALLSIGN_WAV[] = ".callsign.wav";
+const char CALLSIGN_WAV[] = "callsign.wav";
 
 // Array of audio file names for easy cycling
 const char* audioFiles[NUM_AUDIO_FILES] = {
   AUDIO_WAV_1, AUDIO_WAV_2, AUDIO_WAV_3, AUDIO_WAV_4,
-  AUDIO_WAV_5, AUDIO_WAV_6, AUDIO_WAV_7, AUDIO_WAV_8
+  AUDIO_WAV_5, AUDIO_WAV_6, AUDIO_WAV_7, AUDIO_WAV_8,
+  AUDIO_WAV_9, AUDIO_WAV_10, AUDIO_WAV_11
 };
 
 // Add variable to track current audio file (add near the Settings declaration, around line 100)
@@ -93,6 +100,9 @@ const char* validFiles[] = {
   AUDIO_WAV_6,
   AUDIO_WAV_7,
   AUDIO_WAV_8,
+  AUDIO_WAV_9,
+  AUDIO_WAV_10,
+  AUDIO_WAV_11,
   CALLSIGN_WAV,
   SETTINGS_CRC,
 };
@@ -344,7 +354,7 @@ bool settingsChanged() {
 void generateMorseAudio() {
   openRoot();
   if (!file.open(&root, CALLSIGN_WAV, O_RDWR | O_CREAT)) {
-    Serial.println("Failed to open .callsign.wav");
+    Serial.println("Failed to open callsign.wav");
     return;
   }
 
@@ -545,7 +555,7 @@ void audioTask() {
       uint32_t audioLengthMs = playAudio(audioFiles[currentAudioFile]);
       
       // Play the callsign after the audio
-      audioLengthMs += playAudio(CALLSIGN_WAV);
+      //audioLengthMs += playAudio(CALLSIGN_WAV);
       
       // Move to next audio file for next cycle
       currentAudioFile = (currentAudioFile + 1) % NUM_AUDIO_FILES;
