@@ -555,7 +555,7 @@ void audioTask() {
       uint32_t audioLengthMs = playAudio(audioFiles[currentAudioFile]);
       
       // Play the callsign after the audio
-      //audioLengthMs += playAudio(CALLSIGN_WAV);
+      audioLengthMs += playAudio(CALLSIGN_WAV);
       
       // Move to next audio file for next cycle
       currentAudioFile = (currentAudioFile + 1) % NUM_AUDIO_FILES;
